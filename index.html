@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>FC SPORTS 26 — 3D</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#071b12;font-family:Arial,sans-serif;touch-action:none}
+#game{position:absolute;inset:0}canvas{display:block}
+#hud{position:absolute;top:10px;left:0;right:0;display:flex;justify-content:center;gap:14px;align-items:center;color:white;font-weight:bold;text-shadow:0 2px 5px #000;pointer-events:none}
+.pill{background:#06150dcc;padding:8px 14px;border:1px solid #ffffff55;border-radius:20px}
+#help{position:absolute;top:55px;left:10px;color:white;background:#06150dbb;padding:7px 10px;border-radius:8px;font-size:12px}
+#controls{position:absolute;bottom:14px;left:0;right:0;display:flex;justify-content:space-between;align-items:end;padding:0 14px;pointer-events:none}
+#joy{width:132px;height:132px;border-radius:50%;background:#ffffff24;border:2px solid #ffffff99;position:relative;pointer-events:auto;touch-action:none}
+#knob{position:absolute;width:54px;height:54px;border-radius:50%;background:#ffffffb8;border:2px solid white;left:37px;top:37px}
+#buttons{display:grid;grid-template-columns:repeat(2,76px);gap:9px;pointer-events:auto}
+button{border:1px solid #ffffffaa;border-radius:50%;width:76px;height:76px;background:#092bdbdd;color:white;font-weight:bold;font-size:11px;box-shadow:0 3px 9px #0008}
+button:active{transform:scale(.94);background:#e45a12}
+#message{position:absolute;left:50%;top:45%;transform:translate(-50%,-50%);color:white;font-size:clamp(24px,6vw,48px);font-weight:900;text-shadow:0 3px 10px black;display:none;text-align:center}
+</style>
+</head>
+<body>
+<div id="game"></div>
+<div id="hud"><span class="pill">FC SPORTS 26 · 3D</span><span class="pill" id="score">BLUE 0 — 0 RED</span></div>
+<div id="help">Move: joystick / WASD · Shoot: Space</div>
+<div id="message">GOAL!</div>
+<div id="controls"><div id="joy"><div id="knob"></div></div><div id="buttons">
+<button id="shoot">SHOOT</button><button id="power">POWER<br>SHOT</button>
+<button id="tackle">TACKLE</button><button id="clear">CLEAR</button>
+<button id="celebrate" style="grid-column:span 2;width:100%;height:48px;border-radius:18px">CELEBRATE</button>
+</div></div>
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+const scene=new THREE.Scene(); scene.background=new THREE.Color(0x87b9d8); scene.fog=new THREE.Fog(0x87b9d8,35,75);
+const camera=new THREE.PerspectiveCamera(48,innerWidth/innerHeight,.1,150);
+camera.position.set(0,23,28); camera.lookAt(0,0,0);
+const renderer=new THREE.WebGLRenderer({antialias:true}); renderer.setPixelRatio(Math.min(devicePixelRatio,2)); renderer.setSize(innerWidth,innerHeight); renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap; document.getElementById('game').appendChild(renderer.domElement);
+scene.add(new THREE.HemisphereLight(0xffffff,0x41633b,2));
+const sun=new THREE.DirectionalLight(0xffffff,2.2); sun.position.set(-10,24,12); sun.castShadow=true; scene.add(sun);
+const mat=(c,r=.8)=>new THREE.MeshStandardMaterial({color:c,roughness:r});
+const grass=mat(0x16833d),stripe1=mat(0x1b9145),white=mat(0xffffff),blue=mat(0x176bff),red=mat(0xe52c35),black=mat(0x171717),skin=mat(0xe0aa7a),ballmat=mat(0xffffff,.35);
+const field=new THREE.Mesh(new THREE.PlaneGeometry(34,52),grass); field.rotation.x=-Math.PI/2; field.receiveShadow=true; scene.add(field);
+for(let i=0;i<8;i++){let s=new THREE.Mesh(new THREE.PlaneGeometry(34,6.5),i%2?grass:stripe1);s.rotation.x=-Math.PI/2;s.position.set(0,.006,-22.75+i*6.5);scene.add(s)}
+function line(x,z,w,h){let o=new THREE.Mesh(new THREE.PlaneGeometry(w,h),white);o.rotation.x=-Math.PI/2;o.position.set(x,.025,z);scene.add(o)}
+line(0,-25,34,.18);line(0,25,34,.18);line(-17,0,.18,52);line(17,0,.18,52);line(0,0,34,.14);
+const circle=new THREE.Mesh(new THREE.RingGeometry(5.95,6.12,64),white);circle.rotation.x=-Math.PI/2;circle.position.y=.03;scene.add(circle);
+const spot=new THREE.Mesh(new THREE.CircleGeometry(.16,24),white);spot.rotation.x=-Math.PI/2;spot.position.set(0,.04,0);scene.add(spot);
+function box(x,y,z,w,h,d,m){let o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;scene.add(o);return o}
+function goal(z,dir){let g=new THREE.Group();let depth=2.5;let zz=z+dir*1.3;let post=mat(0xffffff);for(let x of [-4,4]){let p=box(x,1.25,zz,.18,2.5,.18,post);g.add(p)}let bar=box(0,2.5,zz,8,.18,.18,post);g.add(bar);let net=new THREE.Mesh(new THREE.BoxGeometry(8,2.4,depth),new THREE.MeshBasicMaterial({color:0xffffff,wireframe:true,transparent:true,opacity:.25}));net.position.set(0,1.2,zz+dir*depth/2);g.add(net);scene.add(g)}
+goal(-25,-1);goal(25,1);
+function player(color,x,z){let g=new THREE.Group();let torso=new THREE.Mesh(new THREE.CapsuleGeometry(.58,.9,4,8),color);torso.position.y=1.45;torso.castShadow=true;g.add(torso);let head=new THREE.Mesh(new THREE.SphereGeometry(.34,16,12),skin);head.position.y=2.35;g.add(head);for(let dx of [-.25,.25]){let leg=new THREE.Mesh(new THREE.CylinderGeometry(.13,.16,.75,10),black);leg.position.set(dx,.48,0);g.add(leg)}g.position.set(x,0,z);scene.add(g);return g}
+const hero=player(blue,0,13),enemy=player(red,0,-12);
+const ball=new THREE.Mesh(new THREE.SphereGeometry(.38,24,16),ballmat);ball.position.set(0,.4,9);ball.castShadow=true;scene.add(ball);
+for(let i=0;i<5;i++){let patch=new THREE.Mesh(new THREE.SphereGeometry(.385,8,8),black);patch.scale.set(.2,.08,.5);patch.position.y=.05;ball.add(patch);patch.rotation.y=i*Math.PI*2/5}
+let vel=new THREE.Vector3(),move=new THREE.Vector2(),scoreB=0,scoreR=0,celebrate=0;
+const score=document.getElementById('score'),msg=document.getElementById('message');
+function updateScore(){score.textContent=`BLUE ${scoreB} — ${scoreR} RED`}
+function kick(power){let d=new THREE.Vector3(ball.position.x-hero.position.x,0,ball.position.z-hero.position.z);if(d.length()<3.2){if(d.length()<.1)d.set(0,0,-1);d.normalize();vel.add(d.multiplyScalar(power));}}
+document.getElementById('shoot').onclick=()=>kick(.34);document.getElementById('power').onclick=()=>kick(.62);
+document.getElementById('clear').onclick=()=>{let d=new THREE.Vector3(ball.position.x-hero.position.x,0,ball.position.z-hero.position.z);if(d.length()<4)vel.set(d.x*.18,0,-.75)};
+document.getElementById('tackle').onclick=()=>{if(hero.position.distanceTo(enemy.position)<3.2){enemy.position.z-=2.8;enemy.position.x+=(Math.random()-.5)*2}};
+document.getElementById('celebrate').onclick=()=>{celebrate=1.8;msg.textContent='⚽ LET’S GO!';msg.style.display='block'};
+const joy=document.getElementById('joy'),knob=document.getElementById('knob');let joyOn=false;
+function joyMove(e){let r=joy.getBoundingClientRect(),x=e.clientX-(r.left+r.width/2),y=e.clientY-(r.top+r.height/2),len=Math.hypot(x,y),max=43;if(len>max){x=x/len*max;y=y/len*max}move.set(x/max,-y/max);knob.style.left=(37+x)+'px';knob.style.top=(37+y)+'px'}
+joy.addEventListener('pointerdown',e=>{joyOn=true;joy.setPointerCapture(e.pointerId);joyMove(e)});joy.addEventListener('pointermove',e=>{if(joyOn)joyMove(e)});function joyEnd(){joyOn=false;move.set(0,0);knob.style.left='37px';knob.style.top='37px'}joy.addEventListener('pointerup',joyEnd);joy.addEventListener('pointercancel',joyEnd);
+const keys={};addEventListener('keydown',e=>{keys[e.key.toLowerCase()]=true;if(e.code==='Space')kick(.34)});addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
+let last=performance.now();
+function animate(now){requestAnimationFrame(animate);let dt=Math.min((now-last)/1000,.04);last=now;
+let ix=move.x+(keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0),iz= -move.y+(keys.s||keys.arrowdown?1:0)-(keys.w||keys.arrowup?1:0);let len=Math.hypot(ix,iz);if(len>1){ix/=len;iz/=len}
+hero.position.x=THREE.MathUtils.clamp(hero.position.x+ix*9*dt,-15.5,15.5);hero.position.z=THREE.MathUtils.clamp(hero.position.z+iz*9*dt,-23,23);if(len>.1)hero.rotation.y=Math.atan2(ix,iz);
+let ed=new THREE.Vector3(ball.position.x-enemy.position.x,0,ball.position.z-enemy.position.z);if(ed.length()>1.1){ed.normalize();enemy.position.x+=ed.x*3.2*dt;enemy.position.z+=ed.z*3.2*dt;enemy.rotation.y=Math.atan2(ed.x,ed.z)}
+let toBall=new THREE.Vector3(ball.position.x-hero.position.x,0,ball.position.z-hero.position.z);if(toBall.length()<1.25){vel.x+=toBall.x*.035;vel.z+=toBall.z*.035}
+ball.position.x+=vel.x;ball.position.z+=vel.z;vel.multiplyScalar(.985);ball.position.y=.4+Math.abs(Math.sin(now*.012))*Math.min(.35,vel.length()*.3);ball.rotation.x+=vel.z*.08;ball.rotation.z-=vel.x*.08;
+if(Math.abs(ball.position.x)>16){ball.position.x=Math.sign(ball.position.x)*16;vel.x*=-.5}
+if(ball.position.z<-25.5||ball.position.z>25.5){let isBlue=ball.position.z<-25.5;if(Math.abs(ball.position.x)<4){if(isBlue)scoreB++;else scoreR++;updateScore();msg.textContent='GOAL!';msg.style.display='block';setTimeout(()=>msg.style.display='none',1200)}ball.position.set(0,.4,0);vel.set(0,0,0)}
+if(celebrate>0){celebrate-=dt;hero.rotation.z=Math.sin(now*.02)*.35; if(celebrate<=0){hero.rotation.z=0;msg.style.display='none'}}
+camera.position.x+=(hero.position.x*.25-camera.position.x)*.04;camera.lookAt(hero.position.x*.18,0,0);
+renderer.render(scene,camera)}
+requestAnimationFrame(animate);
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+</script></body></html>
